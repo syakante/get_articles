@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@extractus/article-extractor": "*",
+    "csv": "^6.3.0",
     "csv-parse": "*",
     "path": "^0.12.7"
   },
