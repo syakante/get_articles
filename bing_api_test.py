@@ -49,7 +49,7 @@ async def main(queries_path='queries.txt', freq='Week', count=5):
     queue = asyncio.Queue()
     async with asyncio.TaskGroup() as group:
         for i in range(len(queryList)):
-            myParams['q'] = queryList[i] + " -msn"
+            myParams['q'] = queryList[i] + " -site:msn.com -site:csis.org"
             group.create_task(send_request(myParams, queue))
     while not queue.empty():
         results.append(await queue.get())

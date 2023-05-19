@@ -1,0 +1,24 @@
+{
+  "name": "get_articles",
+  "version": "1.0.0",
+  "dependencies": {
+    "@extractus/article-extractor": "*",
+    "csv-parse": "*",
+    "path": "^0.12.7"
+  },
+  "description": "my description",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syakante/get_articles.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/syakante/get_articles/issues"
+  },
+  "homepage": "https://github.com/syakante/get_articles#readme"
+}
