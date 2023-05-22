@@ -24,7 +24,7 @@ const leftTag = /<(?:"[^"]*"['"]*|'[^']*'['"]*|[^'">])+>/g;
 const kncaRegex = /\(평양\s*\d+월\s*\d+일발\s*조선중앙통신\)(?:\s*\d+일부\s*)?(.*?)\(끝\)/;
 setSanitizeHtmlOptions(mySanitizeOptions);
 
-const filepath = 'test.csv';
+const filepath = 'urls.csv';
 const header = false;
 //for now lets just assume the csv will be a single column. You can future-proof (is that the word?) later with argparse and stuff.
 //Just get this working for now aieeeeee
@@ -65,7 +65,7 @@ async function getUrlArticleText(input) {
           return('');
         }
         //console.log(articleText);
-        return(articleText[0]);
+        return(articleText[0]).replace(/(\r\n|\n|\r)/gm, "");
       } else {
         console.log("Got null. Seems like the webpage needs be rendered with JS client-side.");
       }
@@ -77,7 +77,7 @@ async function getUrlArticleText(input) {
 //TODO: this doesn't work. aiieeeeee
 function writeCSV(filePath, data) {
   return new Promise((resolve, reject) => {
-    const stream = csv.stringify({ header: true });
+    const stream = csv.stringify({ header: false, bom: true });
     const writableStream = fs.createWriteStream(filePath);
 
     writableStream.on('error', (err) => {
@@ -89,7 +89,7 @@ function writeCSV(filePath, data) {
     });
 
     data.forEach((row) => {
-      stream.write(row);
+      stream.write([row]);
     });
 
     stream.end();
