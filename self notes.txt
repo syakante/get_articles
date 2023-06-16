@@ -1,0 +1,13 @@
+"Victor Cha"
+  --> could be TV appearance, print interview, or work cited or sth
+"Ellen Kim"
+  --> sim.
+"Beyond Parallel" AND "Korea"
+  --> sub-catg. by which publication was cited (see spreadsheet)
+"Korea Chair"
+  --> all publications on kchair website
+  --> mentions of kchair-hosted event
+      --> sub-catg. by event series
+
+"Chinese economic coercion"
+  --> separate from kchair media covg. but worth having similar fetch news api kind of thing

@@ -34,12 +34,11 @@ async def send_request(params, queue: asyncio.Queue):
 
 
 async def main(queries_path='queries.txt', freq='Week', count=5):
-
     with open(queries_path) as f:
         queryList = f.read().split('\n')
     
     myParams = { 'mkt': 'en-US' ,
-               'freshness': freq,
+               #'freshness': freq,
                'count': count,
                'q': ''}
     
