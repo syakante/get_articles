@@ -1,29 +1,52 @@
 import spacy
+from string import printable
 nlp = spacy.load('en_core_web_sm')
 
 with open('korean-surnames.txt', 'r') as f:
 	krSurnames = f.read().splitlines()
 
+def is_latin(text):
+	return not bool(set(text) - set(printable))
+
+def likelyName(nameL):
+	doc = nlp(" ".join(nameL))
+	newsWords = {'News', 'Daily', '뉴스', 'Radio'}
+	nameSet = set(nameL)
+	NLPcheck = any('PERSON' == e.label_ for e in doc.ents) 
+	surnameCheck = any(x in krSurnames for x in nameL)
+	noNewsWordsCheck = (len(newsWords.intersection(nameSet)) == 0)
+	return (NLPcheck or surnameCheck and noNewsWordsCheck)
+
 def nameFormat(s:str) -> str:
 	#for names written in english
 	#this doesn't catch korean names that are formatted as Last First and the first name syllables aren't delimited
+	#intends to turn "John Doe" into "Doe, John"
 	#nameL = [titlecase(x) for x in s.split(" ")]\
-	doc = nlp(s)
-	nameL = [x.title() for x in s.split(" ")]
-	if len(nameL) > 3 or len(nameL) < 2 and not (any('PERSON' == e.label_ for e in doc.ents) or any(x in krSurnames for x in nameL)):
-		return('unlikelyName')
-		# "author" can be like "World Nation News Desk"
-		# or a definite wrong scraping like "asdf International. To"
-	if(len(nameL) > 2 and nameL[0] in krSurnames):
-		ret = nameL[0]+", "+" ".join(nameL[1:])
+	if is_latin(s):
+		nameL = [x.title() for x in s.split(" ")] #so John Doe --> ["John", "Doe"]
+		if("For" in nameL):
+			i = nameL.index("For")
+			nameL = nameL[:i]
+		if len(nameL) > 3 or len(nameL) < 2 or not likelyName(nameL):
+			#...should clean above so less spaghetti
+			#something like a likelyName bool function
+			return('unlikelyName')
+			# "author" can be like "World Nation News Desk"
+			# or a definite wrong scraping like "asdf International. To"
+		if(len(nameL) > 2 and nameL[0] in krSurnames):
+			ret = nameL[0]+", "+" ".join(nameL[1:])
+			return(ret)
+		first = " ".join(nameL[:-1])
+		last = nameL[-1]
+		if(first in krSurnames and "-" in last):
+			ret = first+" "+last
+			return(ret)
+		ret = last+", "+first
 		return(ret)
-	first = " ".join(nameL[:-1])
-	last = nameL[-1]
-	if(first in krSurnames and "-" in last):
-		ret = first+", "+last
-		return(ret)
-	ret = last+", "+first
-	return(ret)
+	else: #non-latin
+		if len(s) > 3:
+			return('unlikelyName')
+		return s
 
 def authorListFormat(L) -> str:
 	if not L or len(L) == 0:
@@ -36,7 +59,7 @@ def authorListFormat(L) -> str:
 	if(authors[0] == ''):
 		return('')
 	authors = [x for x in authors if x != ''] #eh....
-	if(len(authors) > 2):
+	if(len(authors) > 1): #what? why? (used to be 2)
 		if(any([x == "unlikelyName" for x in authors])):
 			if(authors[0] == "unlikelyName" and all([x != "unlikelyName" for x in authors[1:]])):
 				authors = authors[1:]
@@ -49,9 +72,8 @@ def authorListFormat(L) -> str:
 				#...idk
 				authors = [authors[0]]
 	if(len(authors) == 1):
-		#len(authors) < 2 i.e. len of 1
 		if(authors[0] == "unlikelyName"):
-			return(L[0])
+			return(L[0]) #..?
 		else:
 			return(authors[0])
 	authors[-1] = "and "+authors[-1]

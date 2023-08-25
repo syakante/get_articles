@@ -4,7 +4,7 @@ const { extract, getSanitizeHtmlOptions, setSanitizeHtmlOptions } = require('@ex
 //const input = 'https://www.taipeitimes.com/News/editorials/archives/2023/05/19/2003800050';
 
 //const input = 'https://koreajoongangdaily.joins.com/2022/11/21/opinion/columns/Korea-Australia-middle-power/20221121193437683.html';
-const input = process.argv[2]
+//const input = process.argv[2]
 const mySanitizeOptions = {
   allowedTags: ['p']
   //allowedAttributes: {'header': ['class']}
