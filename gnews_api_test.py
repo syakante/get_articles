@@ -1,28 +1,6 @@
 import argparse
-
-print("Importing libraries and files...")
-
-from gnews import GNews
-from collections import Counter
-import subprocess
-import concurrent.futures
-from multiprocessing.dummy import Pool as ThreadPool
-import requests
 import time
 from datetime import date, datetime
-from newspaper import Article
-import pandas as pd
-import spacy
-from formatAuthors import nameFormat, authorListFormat
-from naver_api import naver_main
-
-nlp = spacy.load('en_core_web_sm')
-# queries_path='queries.txt'
-# with open(queries_path) as f:
-# 	queryList = f.read().split('\n')
-
-with open('nodepath.txt', 'r') as f:
-	nodepath = f.read()
 
 #TODO:
 #also call naver API js to get more urls
@@ -47,6 +25,8 @@ def naver(query:str, startDate:str):
 	results['publisher'] = "_sitename_notgiven"
 	results['title'] = "titleNotGiven"
 	results.rename(columns = {"originallink": "url", "pubDate": "published date"}, inplace=True)
+	#.....
+	results['published date'] = results.apply(lambda x: datetime.strptime(x['published date'], "%a, %d %b %Y %H:%M:%S %z").replace(tzinfo=None), axis=1)
 	return(results)
 
 
@@ -174,7 +154,7 @@ def main(query:str, startDate:str, endDate:str, outfile:str):
 		#df['url'] = df['url'].apply(lambda url: requests.get(url).url)
 		res = executor.map(lambda x: requests.get(x).url, df['url'])
 	df['url'] = list(res) #i think order isnt preserved so uh...
-	print(df['url'])
+	#print(df['url'])
 	print("Got urls.")
 
 	#append Naver urls and remove duplicates here
@@ -209,8 +189,12 @@ def main(query:str, startDate:str, endDate:str, outfile:str):
 
 	#todo: get citation info, group by site on docx output
 	df = df.drop('description', axis=1)
+	df['published date'] = df.apply(lambda x: datetime.strptime(x['published date'], "%a, %d %b %Y %H:%M:%S %Z"), axis=1)
 
+	tmp = df.shape[0]
 	df = pd.concat([df, naver(query, startDate)], ignore_index = True)
+	tmp = df.shape[0]-tmp
+	print("Found", tmp, "results on Naver.")
 
 	pool = ThreadPool(10)
 	print("trying n3k...")
@@ -223,7 +207,7 @@ def main(query:str, startDate:str, endDate:str, outfile:str):
 
 	df = df.merge(d, left_on = "url", right_on = 0)
 	df = df.drop(['title', 'site'], axis=1)
-	df.columns = ['date', 'url', 'publisher1', 'url2', 'title', 'authors', 'publisher2']
+	df.columns = ['date', 'url', 'publisher1', 'url2', 'title', 'author', 'publisher2']
 	#idr what url was lol
 	df.drop(['url2'], axis=1, inplace=True,)
 
@@ -246,9 +230,10 @@ def main(query:str, startDate:str, endDate:str, outfile:str):
 
 	df.drop_duplicates('url', inplace=True, keep='last') #since sorted by publisher earlier, this should discard _sitename and keep other
 
-	df['date'] = df.apply(lambda x: datetime.strptime(x['date'], "%a, %d %b %Y %H:%M:%S %Z"), axis=1)
+	#print(df['date'])
+	
 	df.sort_values(by='date', inplace=True)
-	df['date'] = df.apply(lambda x: datetime.strftime(x['date'], "%d %b %Y"), axis=1)
+	df['date'] = df.apply(lambda x: datetime.strftime(x['date'], "%Y-%m-%d"), axis=1)
 
 	df.to_excel(outfile, index=False)
 	print("Done. Wrote to", outfile)
@@ -271,4 +256,28 @@ if __name__ == "__main__":
 
 	print('Getting results for "', args.query, '", from', args.start, 'to', args.end)
 
+	print("Importing libraries and files...")
+
+	from gnews import GNews
+	from collections import Counter
+	import subprocess
+	import concurrent.futures
+	from multiprocessing.dummy import Pool as ThreadPool
+	import requests
+	from newspaper import Article
+	import pandas as pd
+	import spacy
+	from formatAuthors import nameFormat, authorListFormat
+	from naver_api import naver_main
+
+	nlp = spacy.load('en_core_web_sm')
+	# queries_path='queries.txt'
+	# with open(queries_path) as f:
+	# 	queryList = f.read().split('\n')
+
+	with open('nodepath.txt', 'r') as f:
+		nodepath = f.read()
+
 	main(query = args.query, startDate = args.start, endDate = args.end, outfile = args.output)
+
+# I think one future todo (along with removing node dependency) is replace inplace=True on pandas methods with df = df.method()
