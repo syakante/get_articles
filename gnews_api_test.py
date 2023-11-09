@@ -21,13 +21,16 @@ def naver(query:str, startDate:str):
 	results = pd.DataFrame(naver_main(query, startDate)) #list of dicts -> pd
 	#columns: title (bad, gets cut off), originallink, link (usually naver link), description (no need), pubDate
 	#columns to have for merge: publisher, published date, title, url
-	results.drop(['title', 'link', 'description'], axis=1, inplace=True)
-	results['publisher'] = "_sitename_notgiven"
-	results['title'] = "titleNotGiven"
-	results.rename(columns = {"originallink": "url", "pubDate": "published date"}, inplace=True)
-	#.....
-	results['published date'] = results.apply(lambda x: datetime.strptime(x['published date'], "%a, %d %b %Y %H:%M:%S %z").replace(tzinfo=None), axis=1)
-	return(results)
+	if results.size == 0:
+		return(pd.DataFrame(columns = ['title', 'publisher', 'url', 'published date']))
+	else:
+		results.drop(['title', 'link', 'description'], axis=1, inplace=True)
+		results['publisher'] = "_sitename_notgiven"
+		results['title'] = "titleNotGiven"
+		results.rename(columns = {"originallink": "url", "pubDate": "published date"}, inplace=True)
+		#.....
+		results['published date'] = results.apply(lambda x: datetime.strptime(x['published date'], "%a, %d %b %Y %H:%M:%S %z").replace(tzinfo=None), axis=1)
+		return(results)
 
 
 def parse_politico(articleURL:str):
@@ -35,7 +38,6 @@ def parse_politico(articleURL:str):
 	#determine whether or not it actually mentions Victor Cha in the article body
 	#and not all the useless crap at the bottom
 	p = subprocess.Popen([nodepath, 'politico_extractor.js', articleURL], stdout=subprocess.PIPE)
-	#node_output = subprocess.check_output([nodepath, 'politico_extractor.js', articleURL], encoding='utf-8').strip()
 	out = p.stdout.read().decode('utf8')
 	return(out)
 
@@ -92,7 +94,6 @@ def n3k_cite_info(articleURL:str):
 	try:
 		authors = authorListFormat(myArticle.authors)
 		#i want to also check if publisher is the author and ignore if so but idt it will work
-		#print("ok1", end=" ")
 		if(len(myArticle.authors) > 0 and (authors == 'unlikelyName' or authors.isspace() or authors == '')):
 			authors = myArticle.authors[0]
 		#print("ok2")
@@ -108,7 +109,8 @@ def n3k_cite_info(articleURL:str):
 	canonurl = myArticle.canonical_link
 	if(len(authors) == 0):
 		authors = "authorNotFound"
-	return([canonurl, title, authors, sitename])
+	pubdate = datetime.timestamp(myArticle.publish_date) #datetime.datetime object -> timestamp bc of timezone naive/aware stuff
+	return([canonurl, title, authors, sitename, pubdate])
 	
 def rowURLtoText(row):
 	#since we want to use politico extractor if politico else n3k
@@ -121,12 +123,15 @@ def rowURLtoText(row):
 			print(e)
 			return("(error)")
 
-def main(query:str, startDate:str, endDate:str, outfile:str):
+def main(query:str, startDate:str, endDate:str, outfile:str, exactQuery=False):
 	#query = 'Beyond Parallel'
 	#startDate = '2022-12-01'
 	#endDate = '2023-07-26'
 	#set to today if no end date specified. I think Y-m-d is the correct format.
-	sQuery = '"' + query + '"' + ' AND Korea before:' + endDate + " after:" + startDate
+	if exactQuery:
+		sQuery = '"' + query + '"' + ' before:' + endDate + " after:" + startDate
+	else:
+		sQuery = '"' + query + '"' + ' AND Korea before:' + endDate + " after:" + startDate
 	sQuery_kr = '"' + query + '"' + 'before:' + endDate + " after:" + startDate
 	print("Getting news...")
 	start = time.time()
@@ -142,32 +147,16 @@ def main(query:str, startDate:str, endDate:str, outfile:str):
 	df_kr = pd.DataFrame(results_kr)
 	df = pd.concat([df_en, df_kr], ignore_index=True)
 	df = pd.concat([df.drop(['publisher'], axis=1), df['publisher'].apply(pd.Series).rename(columns = {"href": "site", "title": "publisher"})], axis=1)
-	#df = pd.concat([df.drop(['publisher', 'title'], axis=1), df['publisher'].apply(pd.Series).rename(columns = {"href": "site"})], axis=1)
 	print("Made data frame.")
 
-	# df['title'] = df['title'].apply(lambda x: "".join(x.split(' - ')[0:-1]))
-	# print("Adjusted titles.")
-	#df['url'] = df['url'].apply(lambda x: requests.get(x).url)
-	#^ request is pretty slow. thread here?
-
 	with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-		#df['url'] = df['url'].apply(lambda url: requests.get(url).url)
 		res = executor.map(lambda x: requests.get(x).url, df['url'])
+	#do this bc the gnews api returns the rss url and not the canon url
 	df['url'] = list(res) #i think order isnt preserved so uh...
-	#print(df['url'])
 	print("Got urls.")
-
-	#append Naver urls and remove duplicates here
-	#also note naver urls have html stuff like &quot
-	#...either find a good way to match identical urls even with src=Naver or whatever equivalent (since this distinction differs across sites)
-	#or maybe just match by same title+domain?
 
 	df = df[['cbsnews.com/essentials' not in x for x in df['url']]]
 	print("Filtered cbs.")
-	#print("Getting text...")
-	# df['text'] = df.apply(rowURLtoText, axis=1)
-	# df2 = df[['victor cha' in x.lower() for x in df['text']]]
-	#filtered_articles = [x for x in results if ("www.politico.com" not in x['publisher']['href'] or "victor cha" in parse_politico(requests.get(x['url']).url).lower())]
 	start = time.time()
 	df = df[df.apply(lambda x: ("www.politico.com" not in x['site'] or query.lower() in parse_politico(requests.get(x['url']).url).lower()), axis=1)]
 	end = time.time()
@@ -178,38 +167,58 @@ def main(query:str, startDate:str, endDate:str, outfile:str):
 	end = time.time()
 	print("(Took", end-start, "to filter joongang.)")
 
-	#issue:
-	#some articles that we get from gnews are totally irrelevant (about boy bands or something)
+	#So some articles that we get from gnews are totally irrelevant (about boy bands or something)
 	#or are not actually about the subject because the site has their name somewhere on the site but not the article
 	#trying to filter by getting article text and checking for exact match doesn't always work
 	#bc of paywalled articles and article text extract sometimes failing to properly get article text
 	#idk. I think just manually see which websites are problematic and specially treat those.
 	#Currently just politico and JoongAng so not too bricked, I guess.
 
+	#I also think the above uses gnews to get certain column(s) that aren't/weren't avail with n3k
+	#Looks like it was publisher. But I think I might have gotten them via n3k by now
+	#so at this point really only need url from gnews tbh
+
 
 	#todo: get citation info, group by site on docx output
 	df = df.drop('description', axis=1)
 	df['published date'] = df.apply(lambda x: datetime.strptime(x['published date'], "%a, %d %b %Y %H:%M:%S %Z"), axis=1)
-
+	#^ str to datetime obj
 	tmp = df.shape[0]
 	df = pd.concat([df, naver(query, startDate)], ignore_index = True)
 	tmp = df.shape[0]-tmp
 	print("Found", tmp, "results on Naver.")
+	#appended Naver urls, need to remove duplicates (by url, which will be stdized by canon url in n3k_cite_info)
+
 
 	pool = ThreadPool(10)
 	print("trying n3k...")
 	results = pool.map(n3k_cite_info, df['url'].tolist())
+	#^ whoops dropped pubdate like this -_-
 	#df[['title', 'author', 'publish_date']] = df['url'].apply(n3k_cite_info).apply(pd.Series)
-	#extremely lazy I give up df updating
-	d = pd.DataFrame(results)
+	df = pd.DataFrame(results) #<- url, title, authors, sitename, pubdate
+	df.columns = ['url', 'title', 'authors', 'publisher', 'date']
 
 	pool.close()
-
-	df = df.merge(d, left_on = "url", right_on = 0)
-	df = df.drop(['title', 'site'], axis=1)
-	df.columns = ['date', 'url', 'publisher1', 'url2', 'title', 'author', 'publisher2']
-	#idr what url was lol
-	df.drop(['url2'], axis=1, inplace=True,)
+	if False:
+		print("debug: d.shape =", d.shape)
+		print("debug:", d.iloc[:1])
+		#colnames r just 0 1 2 3
+		print("debug:", df.iloc[:1])
+		#colnames r title ... publisher
+	
+		df.to_excel("debug_df0.xlsx", index=True)
+		d.to_excel("debug_d.xlsx", index=True)
+		df = df.merge(d, left_on = "url", right_on = 0) #inner join means I lose like 3million possible entries -_- but why lol...
+		#I think the purpose was to merge some column that df has that d doesn't
+		#but im not sure what rn
+		df.to_excel("debug_df1.xlsx", index=True)
+		print("quit")
+		quit()
+		print("debug: df.shape = ", df.shape)
+		df = df.drop(['title', 'site'], axis=1)
+		df.columns = ['date', 'url', 'publisher1', 'url2', 'title', 'author', 'publisher2']
+		#idr what url was lol
+		df.drop(['url2'], axis=1, inplace=True,)
 
 
 	def helper(pub1, pub2):
@@ -223,15 +232,15 @@ def main(query:str, startDate:str, endDate:str, outfile:str):
 		return ret
 
 		#if publisher2 is notfound then itcantbehelped.jpg
-	df['publisher'] = df.apply(lambda x: helper(x['publisher1'], x['publisher2']), axis=1)
-	df.drop(['publisher1', 'publisher2'], axis=1, inplace=True)
+	
+	if False:
+		df['publisher'] = df.apply(lambda x: helper(x['publisher1'], x['publisher2']), axis=1)
+		df.drop(['publisher1', 'publisher2'], axis=1, inplace=True)
 
 	df.sort_values(by='publisher', inplace=True)
 
 	df.drop_duplicates('url', inplace=True, keep='last') #since sorted by publisher earlier, this should discard _sitename and keep other
 
-	#print(df['date'])
-	
 	df.sort_values(by='date', inplace=True)
 	df['date'] = df.apply(lambda x: datetime.strftime(x['date'], "%Y-%m-%d"), axis=1)
 
@@ -251,6 +260,7 @@ if __name__ == "__main__":
 	parser.add_argument("--end", "-e", type=str, required=False, help="End date, formatted as YYYY-MM-DD. If not used, defaults to today.",
 		nargs = "?", default = today, const=today)
 	parser.add_argument("--output", "-o", type=str, required=True, help="Filename of output file.")
+	parser.add_argument("--exact", "-x", type=str, required=False, help="T/F search for your exact query (i.e. quotes around it in the search engine).")
 
 	args = parser.parse_args()
 

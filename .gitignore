@@ -1,7 +1,9 @@
 bing_headers.json
 curltest.sh
+*.xlsx
 nodepath.txt
 test*
+example*
 tmp.py
 /node_modules
 /__pycache__

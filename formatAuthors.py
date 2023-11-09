@@ -44,7 +44,7 @@ def nameFormat(s:str) -> str:
 		ret = last+", "+first
 		return(ret)
 	else: #non-latin
-		if len(s) > 3:
+		if len(s) > 3 or len(s) < 2:
 			return('unlikelyName')
 		return s
 
@@ -72,8 +72,10 @@ def authorListFormat(L) -> str:
 				#...idk
 				authors = [authors[0]]
 	if(len(authors) == 1):
-		if(authors[0] == "unlikelyName"):
+		if(authors[0] == "unlikelyName" and is_latin(L[0])):
 			return(L[0]) #..?
+		if(authors[0] == "unlikelyName" and not is_latin(L[0])):
+			return("")
 		else:
 			return(authors[0])
 	authors[-1] = "and "+authors[-1]
