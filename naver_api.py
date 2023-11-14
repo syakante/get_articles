@@ -12,11 +12,13 @@ options = {
 def myDate(datestr):
 	return(datetime.datetime.strptime(datestr, "%a, %d %b %Y %H:%M:%S %z"))
 
-def naver_main(myQuery:str, startDate:str):
+def naver_main(myQuery:str, startDate:str, endDate:str):
 	articles = []
 	page = 1
-	startDate = startDate + "T00:00:00-05:00"
+	startDate = startDate + "T00:00:00-05:00" #DC time (hacked together)
+	endDate = endDate + "T00:00:00-05:00"
 	startDate_dt = datetime.datetime.fromisoformat(startDate)
+	endDate_dt = datetime.datetime.fromisoformat(endDate)
 	fetchDate = datetime.datetime.now(tz=datetime.timezone.utc)
 	#cases:
 	#1) over all of time, there's <100 results for this query
@@ -39,20 +41,32 @@ def naver_main(myQuery:str, startDate:str):
 			break
 		page += 100
 	#so by now fetchDate = articles[-1] will have happened at least once
-	if fetchDate < startDate_dt:
-		print("Last item's date exceeds threshold (too old, need to cut down)")
+	
+	def search(L, cmp_date):
 		left = 0
-		right = len(articles) - 1
+		right = len(L) - 1
 		result = -1
 		while left <= right:
 			mid = (left + right) // 2
-			if myDate(articles[mid]['pubDate']) >= startDate_dt:
+			if myDate(L[mid]['pubDate']) >= cmp_date:
 				result = mid
 				left = mid + 1
 			else:
 				right = mid - 1
-	print("Naver done.")
-	return(articles[:result + 1])
+		return(result)
+
+	start_id = -2
+	if fetchDate < startDate_dt:
+		#print("Last item's date exceeds threshold (too old, need to cut down)")
+		start_id = search(articles, startDate_dt)
+	ret = articles[:start_id+1]
+	latestDate = myDate(ret[0]['pubDate'])
+	end_id = -1
+	if endDate_dt < latestDate:
+		end_id = search(ret, endDate_dt)
+	ret = ret[end_id:]
+	print("Found", len(ret), "results from Naver.")
+	return(ret)
 	# with open("naver_out.json", "w") as outfile:
 	# 	json.dump(articles[:result + 1], outfile)
 	# 	print("ok")

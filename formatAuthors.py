@@ -78,7 +78,6 @@ def authorListFormat(L) -> str:
 			return("")
 		else:
 			return(authors[0])
-	authors[-1] = "and "+authors[-1]
 	authors = [x+"," for x in authors[:-1]] + [authors[-1]]
 	#I think by citation standards say et al after 20 authors but uh... hopefully should never come to that...
 	return(" ".join(authors))
