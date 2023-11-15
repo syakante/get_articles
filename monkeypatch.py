@@ -1,5 +1,8 @@
+import re
+import string
 #parsers.py
 #@classmethod for class Parser(object)
+@classmethod
 def getElementsByTag_custom(cls, node, tag=None, attr=None, value=None, childs=False, use_regex=False) -> list:
 	NS = None
 	# selector = tag or '*'
@@ -25,7 +28,7 @@ from string import printable
 def is_latin(text):
 	return not bool(set(text) - set(printable))
 #method get_authors
-def get_authors(self, doc):
+def get_authors_custom(self, doc):
 	"""Fetch the authors of the article, return as a list
 	Only works for english articles
 	"""
@@ -46,9 +49,6 @@ def get_authors(self, doc):
 			seen[item.lower()] = 1
 			result.append(item.title())
 		return result
-
-	def is_latin(text):
-		return not bool(set(text) - set(printable))
 
 	def parse_byline(search_str):
 		"""

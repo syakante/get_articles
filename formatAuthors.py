@@ -79,6 +79,7 @@ def authorListFormat(L) -> str:
 		else:
 			return(authors[0])
 	authors = [x+"," for x in authors[:-1]] + [authors[-1]]
+	#also need to sth sth with "and" before final, but ignore comma if only 2
 	#I think by citation standards say et al after 20 authors but uh... hopefully should never come to that...
 	return(" ".join(authors))
 

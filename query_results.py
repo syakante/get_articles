@@ -30,7 +30,7 @@ def n3k_cite_info(articleURL:str):
 	except Exception as e:
 		if("404" in str(e)):
 			print("404 error on", articleURL)
-			return([articleURL, "_titleNotFound_404", "authorNotFound_404", "_404"])
+			return([articleURL, "_titleNotFound_404", "_authorNotFound_404", "_404"])
 		else:
 			print("N3k Article download error:", e)
 			return([articleURL, "_titleNotFound_n3kerror", "_authorNotFound_n3kerror", "_sitenameNotFound_n3kerror"])
@@ -166,7 +166,7 @@ def main(query:str, startDate:str, endDate:str, outfile:str, exactQuery=False):
 	out.sort_values(by='publisher', inplace=True)
 	out.drop_duplicates('url', inplace=True, keep='last') #since sorted by publisher earlier, this should discard _sitename and keep other
 	out.sort_values(by='date', inplace=True)
-	out.to_excel(outfile)
+	out.to_excel(outfile, index=False)
 	print("Done. Wrote to", outfile)
 
 
@@ -187,23 +187,23 @@ if __name__ == "__main__":
 	print("Importing libraries and files...")
 
 	from gnews import GNews
-	from collections import Counter
+	#from collections import Counter
 	import subprocess
 	import concurrent.futures
 	from multiprocessing.dummy import Pool as ThreadPool
 	import requests
 	from newspaper import Article
+	from newspaper.parsers import Parser
+	from newspaper.extractors import ContentExtractor
 	import pandas as pd
-	import spacy
+	import sys
 	from formatAuthors import nameFormat, authorListFormat
 	from naver_api import naver_main
 
-	nlp = spacy.load('en_core_web_sm')
-	# queries_path='queries.txt'
-	# with open(queries_path) as f:
-	# 	queryList = f.read().split('\n')
-
-	with open('nodepath.txt', 'r') as f:
-		nodepath = f.read()
+	import monkeypatch
+	#OriginalClass.class_method = classmethod(custom_class_method)
+	Parser.getElementsByTag = monkeypatch.getElementsByTag_custom
+	ContentExtractor.get_authors = monkeypatch.get_authors_custom
+	ContentExtractor.is_latin = monkeypatch.is_latin
 
 	main(query = args.query, startDate = args.start, endDate = args.end, outfile = args.output, exactQuery = args.exact)
