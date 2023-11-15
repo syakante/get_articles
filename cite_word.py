@@ -4,7 +4,7 @@ from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 
-infile = "example media covg.xlsx"
+infile = "test8.xlsx"
 outfile = "example output.docx"
 
 raw = pd.read_excel(infile)
@@ -26,8 +26,8 @@ def format_date(date):
 	#out: dd mon., yyyy
 	# _, m, _ = date.split("-")
 	# month = int(m)
-	#mydate = datetime.strptime(date, "%Y-%m-%d")
-	mydate = date.to_pydatetime()
+	mydate = datetime.strptime(date, "%Y-%m-%d")
+	#mydate = date.to_pydatetime()
 	if 5 <= mydate.month and mydate.month <= 7:
 		ret = datetime.strftime(mydate, "%d %b %Y")
 	else:
@@ -80,7 +80,7 @@ for p in publishers:
 	pub_run.bold = True
 	#le for loop
 	for i in range(subset.shape[0]):
-		add_citation(doc, *subset.iloc[i, [subset.columns.get_loc(col) for col in ['author', 'title', 'publisher', 'date', 'url']]])
+		add_citation(doc, *subset.iloc[i, [subset.columns.get_loc(col) for col in ['authors', 'title', 'publisher', 'date', 'url']]])
 
 
 doc.save(outfile)
