@@ -101,21 +101,8 @@ def gnews(query:str, startDate:str, endDate:str, exactQuery=False): #-> 1-d list
 
 	gnews_urls = [i for (i, v) in zip(gnews_urls, ['cbsnews.com/essentials' not in x for x in gnews_urls]) if v]
 	print("Filtered cbs.")
-	#start = time.time()
-	#df = df[df.apply(lambda x: ("www.politico.com" not in x['site'] or query.lower() in parse_politico(requests.get(x['url']).url).lower()), axis=1)]
-	#basically, if url is www.politico.com --> do parse_politico --> if query isnt in the site text, drop it
-	#work in progress bc n3k thinks the whole webpage is the article when it really stops after <aside class="story-related">
-	#but im trying to figure out how to monkey patch n3k to do this... or find some other hack tbh
-	#for now just ignore all politico...
-	gnews_urls = [i for (i, v) in zip(gnews_urls, ['www.politico.com' not in x for x in gnews_urls]) if v]
-	#end = time.time()
-	#print("(Took", end-start, "to filter politico.)")
-	# filtered_articles = [x for x in filtered_articles if ("koreajoongangdaily" not in x['publisher']['href'] or "victor cha" in newspaper3k_extract(requests.get(x['url']).url).lower())]
-	start = time.time()
-	gnews_urls = [i for (i, v) in zip(gnews_urls, ['joongang' not in x or "victor cha" in newspaper3k_extract(x).lower() for x in gnews_urls]) if v]
-	end = time.time()
-	
-	print("(Took", end-start, "to filter joongang.)")
+	#need to manual filter certain cases
+	#see test.py...
 
 	df = gnews_results[gnews_results['url'].isin(gnews_urls)].copy()
 	df.drop(['description', 'publisher'], axis=1, inplace=True)
@@ -151,10 +138,8 @@ def main(query:str, startDate:str, endDate:str, outfile:str, exactQuery=False):
 		thisAuth = n3k_df.at[index, 'authors']
 		thisPub = n3k_df.at[index, 'publisher']
 		thisDate = datetime.strftime(df.at[index, 'date'], "%Y-%m-%d")
-		#FUCKKK I forgot that the gnews title is title (possibly cut off...) - publisher
-		n = len(thisPub)
-		if(title_api[-n:] == thisPub):
-			title_api = title_api[:len(title_api)-n-3]
+
+		title_api = ''.join(title_api.split(' - ')[:-1])
 		thisTitle = title_api
 		if (title_api[-3:] == '...'):
 			thisTitle = title_n3k

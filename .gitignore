@@ -4,6 +4,6 @@ curltest.sh
 nodepath.txt
 test*
 example*
-tmp.py
+tmp*
 /node_modules
 /__pycache__
