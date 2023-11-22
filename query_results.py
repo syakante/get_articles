@@ -23,7 +23,10 @@ def newspaper3k_extract(articleURL:str):
 
 def n3k_cite_info(articleURL:str):
 	#aiee spaghetti
-	myArticle = Article(url = articleURL)
+	flag = False
+	if(urlFilter(articleURL)):
+		flag = True
+	myArticle = Article(url = articleURL, keep_article_html = flag)
 	try:
 		myArticle.download()
 		myArticle.parse()
@@ -39,7 +42,7 @@ def n3k_cite_info(articleURL:str):
 		#i want to also check if publisher is the author and ignore if so but idt it will work
 		if(len(myArticle.authors) > 0 and (authors == 'unlikelyName' or authors.isspace() or authors == '')):
 			authors = myArticle.authors[0]
-		#print("ok2")
+		#need to double-check logic here
 	except Exception as e:
 		print("Author parse error:", e)
 		print("url:", articleURL)
@@ -59,6 +62,8 @@ def n3k_cite_info(articleURL:str):
 	return([canonurl, title, authors, sitename])
 
 def gnews(query:str, startDate:str, endDate:str, exactQuery=False): #-> 1-d list of string urls
+	global query
+	#careful...
 	if exactQuery:
 		sQuery = '"' + query + '"' + ' before:' + endDate + " after:" + startDate
 	else:
@@ -184,6 +189,7 @@ if __name__ == "__main__":
 	import sys
 	from formatAuthors import nameFormat, authorListFormat
 	from naver_api import naver_main
+	from custom_filters import urlFilter
 
 	import monkeypatch
 	#OriginalClass.class_method = classmethod(custom_class_method)
