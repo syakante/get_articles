@@ -15,12 +15,12 @@
 
 #website: where the article ends and the irrelevant stuff begins
 #need to figure out how to store this e.g. class and id? or just the class/id's value?
-SITE_SPLIT = { 'www.politico.com': 'class="story-related"'}
+SITE_SPLIT = { 'https://www.politico.com': '\nThe Inbox\n'}
 
 def urlFilter(articleURL:str):
 	#t/f if should download n3k article_html to 2x check if article is actually relevant
 	#update as necessary...
-	if('korea' not in articleUrl or '.kr/' not in articleUrl):
+	if('korea' not in articleURL or '.kr/' not in articleURL):
 		return True
 	return False
 
@@ -45,11 +45,34 @@ def articleTextCheck(A, query:str) -> bool:
 	#and the only reason we got the result is bc the webpage but not the article has the search word
 	#e.g. the george bush one
 
-	if(query not in A.text):
+	if(A.text != '' and query.lower() not in A.text.lower()):
 		return True
 
 	#next check if it's in our website (black?)list and split the article_html
 	#there should hopefully... be some way to split the html i.e. the closing tags like </div> will be lost
 	#but we can still clean up the html to just get text stuff...
-
+	if(any([A.source_url in x for x in SITE_SPLIT])):
+		#print("here2")
+		if A.text == '':
+			print("(no text found...)")
+			return False
+		txt_split = A.text.split(SITE_SPLIT[A.source_url])
+		#print(txt_split[0])
+		if(query.lower() not in txt_split[0].lower()):
+			return True
 	return False
+
+def test():
+	import monkeypatch
+	from newspaper import Article
+	from newspaper.parsers import Parser
+	from newspaper.extractors import ContentExtractor
+	#OriginalClass.class_method = classmethod(custom_class_method)
+	Parser.getElementsByTag = monkeypatch.getElementsByTag_custom
+	ContentExtractor.get_authors = monkeypatch.get_authors_custom
+	ContentExtractor.is_latin = monkeypatch.is_latin
+
+	a = Article("https://en.yna.co.kr/view/AEN20231006000300315")
+	a.download()
+	a.parse()
+	print(a.title)

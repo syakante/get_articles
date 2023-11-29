@@ -23,10 +23,11 @@ def newspaper3k_extract(articleURL:str):
 
 def n3k_cite_info(articleURL:str):
 	#aiee spaghetti
-	flag = False
-	if(urlFilter(articleURL)):
-		flag = True
-	myArticle = Article(url = articleURL, keep_article_html = flag)
+	# flag = False
+	# if(urlFilter(articleURL)):
+	# 	flag = True
+	# myArticle = Article(url = articleURL, keep_article_html = flag)
+	myArticle = Article(url = articleURL)
 	try:
 		myArticle.download()
 		myArticle.parse()
@@ -37,6 +38,8 @@ def n3k_cite_info(articleURL:str):
 		else:
 			print("N3k Article download error:", e)
 			return([articleURL, "_titleNotFound_n3kerror", "_authorNotFound_n3kerror", "_sitenameNotFound_n3kerror"])
+	if(urlFilter(articleURL) and articleTextCheck(myArticle, query=globalQuery)):
+		return(["_skip", "_skip", "_skip", "_skip"])	
 	try:
 		authors = authorListFormat(myArticle.authors)
 		#i want to also check if publisher is the author and ignore if so but idt it will work
@@ -52,18 +55,17 @@ def n3k_cite_info(articleURL:str):
 	#temporaryily just including pre-processed .authors list too
 	sitename = myArticle.meta_data['og'].get('site_name', '_sitename_notfound')
 	canonurl = myArticle.canonical_link
+	if canonurl == '':
+		canonurl = articleURL
 	if(len(authors) == 0):
 		authors = "_authorNotFound"
-	# if myArticle.publish_date:
-	# 	#pubdate = myArticle.publish_date.replace(tzinfo = timezone.utc)
-	# 	pubdate = datetime.strftime(myArticle.publish_date, "%Y-%m-%d")
-	# else:
-	# 	pubdate = "_not found"
 	return([canonurl, title, authors, sitename])
 
 def gnews(query:str, startDate:str, endDate:str, exactQuery=False): #-> 1-d list of string urls
-	global query
+	global globalQuery
+	globalQuery = query
 	#careful...
+	#query = query.lower()
 	if exactQuery:
 		sQuery = '"' + query + '"' + ' before:' + endDate + " after:" + startDate
 	else:
@@ -136,6 +138,7 @@ def main(query:str, startDate:str, endDate:str, outfile:str, exactQuery=False):
 	#publisher is n3k only
 	#use date from gnews/naver (unless there isn't one, which I can't think of why it would happen...)
 	#not considering priority of duplicate url for now
+
 	def make_row(index):
 		thisUrl = n3k_df.at[index,'url']
 		title_api = df.at[index, 'title']
@@ -144,14 +147,16 @@ def main(query:str, startDate:str, endDate:str, outfile:str, exactQuery=False):
 		thisPub = n3k_df.at[index, 'publisher']
 		thisDate = datetime.strftime(df.at[index, 'date'], "%Y-%m-%d")
 
-		title_api = ''.join(title_api.split(' - ')[:-1])
+		if(' - ' in title_api):
+			title_api = ''.join(title_api.split(' - ')[:-1])
 		thisTitle = title_api
 		if (title_api[-3:] == '...'):
 			thisTitle = title_n3k
 		return([thisUrl, thisTitle, thisAuth, thisPub, thisDate])
 
-	out = pd.DataFrame([make_row(i) for i in range(len(all_urls))])
+	out = pd.DataFrame([make_row(i) for i in range(n3k_df.shape[0])])
 	out.columns = ['url', 'title', 'authors', 'publisher', 'date']
+	out = out[out['authors'] != '_skip']
 	#df['date'] = df.apply(lambda x: datetime.strftime(x['date'], "%Y-%m-%d"), axis=1)
 	out.sort_values(by='publisher', inplace=True)
 	out.drop_duplicates('url', inplace=True, keep='last') #since sorted by publisher earlier, this should discard _sitename and keep other
@@ -189,7 +194,7 @@ if __name__ == "__main__":
 	import sys
 	from formatAuthors import nameFormat, authorListFormat
 	from naver_api import naver_main
-	from custom_filters import urlFilter
+	from custom_filters import urlFilter, articleTextCheck
 
 	import monkeypatch
 	#OriginalClass.class_method = classmethod(custom_class_method)
