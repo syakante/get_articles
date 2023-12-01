@@ -61,8 +61,9 @@ def naver_main(myQuery:str, startDate:str, endDate:str):
 		start_id = search(articles, startDate_dt)
 	ret = articles[:start_id+1]
 	latestDate = myDate(ret[0]['pubDate'])
-	end_id = -1
+	end_id = 0
 	if endDate_dt < latestDate:
+		print("here")
 		end_id = search(ret, endDate_dt)
 	ret = ret[end_id:]
 	print("Found", len(ret), "results from Naver.")

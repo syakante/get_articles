@@ -61,22 +61,71 @@ def n3k_cite_info(articleURL:str):
 		authors = "_authorNotFound"
 	return([canonurl, title, authors, sitename])
 
+def queryDateStr(query:str, startDate:str, endDate:str):
+	return(query + ' before:' + endDate + ' after:' + startDate)
+
+def gnews_halve(gnews_obj, startDate, endDate, query:str):
+	#call when len(pd.DataFrame(google_news_co.get_news(sQuery))) > 100
+	#return pd.Dataframe(google_news_co.get_news(...)) <- where query was modified to halve date
+	start_dt = date.fromisoformat(startDate)
+	end_dt = date.fromisoformat(endDate)
+	mid_date = start_dt + (end_dt - start_dt)/2
+	mid_str = mid_date.isoformat()
+	base_query = query.split(" before:")[0]
+	query1 = queryDateStr(base_query, startDate, mid_str)
+	results1 = pd.DataFrame(gnews_obj.get_news(query1))
+	query2 = queryDateStr(base_query, mid_str, endDate)
+	results2 = pd.DataFrame(gnews_obj.get_news(query2))
+	#I want to make it... recursive but there's not really a base case here...
+	print("post-halved lengths:", len(results1), len(results2))
+	return(pd.concat([results1, results2], ignore_index=True, axis=0))
+
+def myFetch(url):
+	try:
+		return(requests.get(url, timeout=10).url)
+	except requests.exceptions.Timeout as e:
+		print(f"Request timed out for URL: {url}. Error: {e}")
+		return("_url_error_timeout")
+	except requests.exceptions.RequestException as e:
+		print(f"Error fetching URL: {url}. Error: {e}")
+		return("_url_error")
+
 def gnews(query:str, startDate:str, endDate:str, exactQuery=False): #-> 1-d list of string urls
 	global globalQuery
 	globalQuery = query
 	#careful...
-	#query = query.lower()
+
 	if exactQuery:
-		sQuery = '"' + query + '"' + ' before:' + endDate + " after:" + startDate
+		sQuery = queryDateStr('"' + query + '"', startDate, endDate)
 	else:
-		sQuery = '"' + query + '"' + ' AND Korea before:' + endDate + " after:" + startDate
-	sQuery_kr = '"' + query + '"' + 'before:' + endDate + " after:" + startDate
+		sQuery = queryDateStr('"' + query + '"' + ' AND Korea', startDate, endDate)
+	sQuery_kr = queryDateStr('"' + query + '"', startDate, endDate)
+
 	print("Getting news...")
 	start = time.time()
 	google_news_en = GNews(exclude_websites = ['csis.org', 'youtube.com'], max_results = 1000)
 	google_news_kr = GNews(exclude_websites = ['csis.org', 'youtube.com'], max_results = 1000, country = 'KR', language = 'ko')
-	results_en = pd.DataFrame(google_news_en.get_news(sQuery))
-	results_kr = pd.DataFrame(google_news_kr.get_news(sQuery_kr))
+
+	#at the time of this writing >100 results isn't actually supported.
+	#(I assume it's top 100 results sorted by relevancy...)
+	#So for a hack fix I guess try doing the query twice with the date range halved.
+	#But then it's a problem if that too has greater than 100 results in which case I guess keep halving.
+	'''
+	if len(results_en) >= 100:
+		results_en = gnews_halve(google_news_en, startDate, endDate, sQuery)
+	if len(results_kr) >= 100:
+		results_kr = gnews_halve(google_news_kr, startDate, endDate, sQuery_kr)
+	'''
+	#? maybe do the split before on some condition so it doesn't take twice as long
+	#except there isn't any way to know for sure how many results there are before calling .get_news()
+	#TODO think of something here
+	if (int(endDate.split('-')[1]) - int(startDate.split('-')[1])) > 3:
+		print("here")
+		results_en = gnews_halve(google_news_en, startDate, endDate, sQuery)
+		results_kr = gnews_halve(google_news_kr, startDate, endDate, sQuery_kr)
+	else:
+		results_en = pd.DataFrame(google_news_en.get_news(sQuery))
+		results_kr = pd.DataFrame(google_news_kr.get_news(sQuery_kr))
 	end = time.time()
 
 	if len(results_en) == 0:
@@ -94,9 +143,8 @@ def gnews(query:str, startDate:str, endDate:str, exactQuery=False): #-> 1-d list
 	print("Took", end-start)
 
 	with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-		tmp = executor.map(lambda x: requests.get(x).url, gnews_results['url'])
-	#do this bc the gnews api returns the rss url and not the actual url (maybe diff. from canon url)
-	#? somehow getting 0 urls after ^
+		tmp = executor.map(lambda x: myFetch(x), gnews_results['url'])
+
 	res = list(tmp)
 	gnews_results['url'] = res
 	gnews_urls = res
@@ -107,9 +155,8 @@ def gnews(query:str, startDate:str, endDate:str, exactQuery=False): #-> 1-d list
 		return pd.DataFrame(columns=['title', 'url', 'date'])
 
 	gnews_urls = [i for (i, v) in zip(gnews_urls, ['cbsnews.com/essentials' not in x for x in gnews_urls]) if v]
-	print("Filtered cbs.")
-	#need to manual filter certain cases
-	#see test.py...
+	gnews_urls = [i for (i, v) in zip(gnews_urls, ['_url_error' not in x for x in gnews_urls]) if v]
+	#^ TODO make this customizable etc
 
 	df = gnews_results[gnews_results['url'].isin(gnews_urls)].copy()
 	df.drop(['description', 'publisher'], axis=1, inplace=True)
@@ -157,7 +204,6 @@ def main(query:str, startDate:str, endDate:str, outfile:str, exactQuery=False):
 	out = pd.DataFrame([make_row(i) for i in range(n3k_df.shape[0])])
 	out.columns = ['url', 'title', 'authors', 'publisher', 'date']
 	out = out[out['authors'] != '_skip']
-	#df['date'] = df.apply(lambda x: datetime.strftime(x['date'], "%Y-%m-%d"), axis=1)
 	out.sort_values(by='publisher', inplace=True)
 	out.drop_duplicates('url', inplace=True, keep='last') #since sorted by publisher earlier, this should discard _sitename and keep other
 	out.sort_values(by='date', inplace=True)
