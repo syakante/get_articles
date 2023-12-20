@@ -17,16 +17,20 @@
 #need to figure out how to store this e.g. class and id? or just the class/id's value?
 SITE_SPLIT = { 'https://www.politico.com': '\nThe Inbox\n'}
 
+#known sites where article text is paywalled even after DL so searching article text doesn't work
+PAYWALL_SITES = ['https://www.japantimes.co.jp']
+
+KEYWORDS = ["CSIS"] #"Victor Cha", "Beyond Parallel", "Ellen Kim"
+
 def urlFilter(articleURL:str):
 	#t/f if should download n3k article_html to 2x check if article is actually relevant
 	#update as necessary...
-	if('korea' not in articleURL or '.kr/' not in articleURL):
+	if('korea' not in articleURL or '.kr/' not in articleURL or 'asia' not in articleURL):
 		return True
 	return False
 
-def articleTextCheck(A, query:str) -> bool:
+def articleTextCheck(A) -> bool:
 	#article is the Article object from n3k library
-	#query... need it to be some kind of global var
 	#return T/F true if it needs to be dropped
 
 	#the article that gets passed through this function will have been selected
@@ -41,11 +45,21 @@ def articleTextCheck(A, query:str) -> bool:
 	#then make title/authors/sitename = some dummy value
 	#and later check the pandas df for that dummy value and remove those rows
 
+	if(any([A.source_url in x for x in PAYWALL_SITES])):
+		return False
+
+	tmp = ' '.join(A.authors)
+	if('Cha, Victor' in tmp or 'Victor Cha' in tmp):
+		return False
+
+	as_url_L = [q.lower().replace(' ', '-') for q in KEYWORDS]
+	if(any([q in A.url.lower() for q in as_url_L])):
+		return False
+
 	#first check if n3k article text has the text at all
 	#and the only reason we got the result is bc the webpage but not the article has the search word
 	#e.g. the george bush one
-
-	if(A.text != '' and query.lower() not in A.text.lower()):
+	if(A.text != '' and all([q.lower() not in A.text.lower() for q in KEYWORDS])):
 		return True
 
 	#next check if it's in our website (black?)list and split the article_html
@@ -58,7 +72,7 @@ def articleTextCheck(A, query:str) -> bool:
 			return False
 		txt_split = A.text.split(SITE_SPLIT[A.source_url])
 		#print(txt_split[0])
-		if(query.lower() not in txt_split[0].lower()):
+		if(all([q.lower() not in txt_split[0].lower() for q in KEYWORDS])):
 			return True
 	return False
 
@@ -72,7 +86,9 @@ def test():
 	ContentExtractor.get_authors = monkeypatch.get_authors_custom
 	ContentExtractor.is_latin = monkeypatch.is_latin
 
-	a = Article("https://en.yna.co.kr/view/AEN20231006000300315")
+	a = Article("https://www.sfcv.org/articles/music-news/through-it-all-young-peoples-symphony-prevails-and-thrives")
 	a.download()
 	a.parse()
-	print(a.title)
+	return(articleTextCheck(a))
+
+print(test())

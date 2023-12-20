@@ -7,3 +7,4 @@ example*
 tmp*
 /node_modules
 /__pycache__
+/product

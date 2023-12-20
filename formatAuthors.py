@@ -68,9 +68,8 @@ def authorListFormat(L) -> str:
 			elif(authors[0] == "unlikelyName" and not all([x != "unlikelyName" for x in authors[1:]])):
 				authors = [L[0]]
 			else:
-				#authors[0] != "unlikelyName" and not all([x == "unlikelyName" for x in authors[1:]]:
-				#...idk
-				authors = [authors[0]]
+				#can use index bc upper if is any([x == unlikelyname])
+				authors = authors[:authors.index("unlikelyName")]
 	if(len(authors) == 1):
 		if(authors[0] == "unlikelyName" and is_latin(L[0])):
 			return(L[0]) #..?
@@ -79,6 +78,7 @@ def authorListFormat(L) -> str:
 		else:
 			return(authors[0])
 	authors = [x+"," for x in authors[:-1]] + [authors[-1]]
+	#TODO
 	#also need to sth sth with "and" before final, but ignore comma if only 2
 	#I think by citation standards say et al after 20 authors but uh... hopefully should never come to that...
 	return(" ".join(authors))

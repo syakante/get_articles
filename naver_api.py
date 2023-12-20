@@ -37,9 +37,13 @@ def naver_main(myQuery:str, startDate:str, endDate:str):
 
 		fetchDate = myDate(articles[-1]['pubDate'])
 		if len(jsonResponse['items']) < 100:
+			print("Finished pagination.")
 			#i.e. no more results
 			break
 		page += 100
+		print("On page", page//100, "of results.")
+		if page > 1000: #api's maximum...
+			break
 	#so by now fetchDate = articles[-1] will have happened at least once
 	
 	def search(L, cmp_date):
@@ -63,7 +67,7 @@ def naver_main(myQuery:str, startDate:str, endDate:str):
 	latestDate = myDate(ret[0]['pubDate'])
 	end_id = 0
 	if endDate_dt < latestDate:
-		print("here")
+		#print("here")
 		end_id = search(ret, endDate_dt)
 	ret = ret[end_id:]
 	print("Found", len(ret), "results from Naver.")
