@@ -5,6 +5,8 @@ nodepath.txt
 test*
 example*
 tmp*
+authors_in.csv
+authors_out.csv
 /node_modules
 /__pycache__
 /product

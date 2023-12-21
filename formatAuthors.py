@@ -1,3 +1,5 @@
+#ughhhhh need to revamp this!!!!
+
 import spacy
 from string import printable
 nlp = spacy.load('en_core_web_sm')
